@@ -1,0 +1,56 @@
+#Name of pipeline
+name: Deployment of AWS CDK VPC Pipeline
+
+#Activates pipeline when code is pushed to main
+on:
+  push:
+    branches: [ main ]
+
+#Stages
+jobs:
+  aws_cdk_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      #Copies repo into the runner
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      #Installs NodeJS
+      - name: Set up Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-size: 20
+
+      #Installs Python
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      #Installs AWS CDK CLI and dependencies
+      - name: Install CDK Core CLI
+        run: npm install -g aws-cdk
+
+      #Installs Pip dependencies for AWS CDK CLI
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install aws-cdk-lib constructs
+
+      #Configures AWS credentials referencing secrets stored in GitHub
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      #Bootstraps the AWS CDK environment and deploys the infrastructure stack
+      - name: Bootstrap AWS CDK Environment
+        run: cdk bootstrap
+
+      #Deploys the infrastructure stack without requiring approval
+      - name: Deploy Infrastructure Stack
+        run: cdk deploy --require-approval never
