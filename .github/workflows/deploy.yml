@@ -46,9 +46,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       
+      #Gets the AWS account ID from the configured credentials
+      - name: Get AWS Account ID
+        id: aws-account
+        run: echo "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
       #Bootstraps the AWS CDK environment and deploys the infrastructure stack
       - name: Bootstrap AWS CDK Environment
-        run: cdk bootstrap
+        run: cdk bootstrap aws://${{ steps.aws-account.outputs.ACCOUNT_ID }}/us-east-1
 
       #Deploys the infrastructure stack without requiring approval
       - name: Deploy Infrastructure Stack
