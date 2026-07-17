@@ -1,20 +1,32 @@
 #Name of pipeline
-name: Deployment of AWS CDK VPC Pipeline
+name: Deploy AWS CDK Infrastructure
 
-#Activates pipeline when code is pushed to main
+#Activates pipeline when code is pushed to main or dev
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
 
 #Stages
 jobs:
   aws_cdk_deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       #Copies repo into the runner
       - name: Checkout Code Repository
         uses: actions/checkout@v4
+
+      #Determines which environment to deploy based on branch
+      - name: Set Environment
+        id: set-env
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "ENV=prod" >> $GITHUB_OUTPUT
+            echo "STACK_NAME=ProdVpcStack" >> $GITHUB_OUTPUT
+          else
+            echo "ENV=dev" >> $GITHUB_OUTPUT
+            echo "STACK_NAME=DevVpcStack" >> $GITHUB_OUTPUT
+          fi
 
       #Installs NodeJS
       - name: Set up Node.js Environment
@@ -45,7 +57,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      
+
       #Gets the AWS account ID from the configured credentials
       - name: Get AWS Account ID
         id: aws-account
@@ -55,6 +67,6 @@ jobs:
       - name: Bootstrap AWS CDK Environment
         run: cdk bootstrap aws://${{ steps.aws-account.outputs.ACCOUNT_ID }}/us-east-1
 
-      #Deploys the infrastructure stack without requiring approval
-      - name: Deploy Infrastructure Stack
-        run: cdk deploy --require-approval never
+      #Deploys the target environment stack without requiring approval
+      - name: Deploy ${{ steps.set-env.outputs.ENV }} Infrastructure Stack
+        run: cdk deploy ${{ steps.set-env.outputs.STACK_NAME }} --require-approval never -c env=${{ steps.set-env.outputs.ENV }}
