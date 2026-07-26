@@ -5,6 +5,14 @@ name: Destroy AWS CDK Infrastructure
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Environment to destroy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+          - all
       confirm:
         description: 'Type "destroy" to confirm teardown'
         required: true
@@ -51,6 +59,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      #Destroys the infrastructure stack without requiring approval
-      - name: Destroy Infrastructure Stack
-        run: cdk destroy --all --force
+      #Destroys the dev stack
+      - name: Destroy Dev Infrastructure Stack
+        if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == 'all'
+        run: cdk destroy DevVpcStack --force -c env=dev
+
+      #Destroys the prod stack
+      - name: Destroy Prod Infrastructure Stack
+        if: github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'all'
+        run: cdk destroy ProdVpcStack --force -c env=prod
