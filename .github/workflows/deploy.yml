@@ -1,10 +1,18 @@
 #Name of pipeline
 name: Deploy AWS CDK Infrastructure
 
-#Activates pipeline when code is pushed to main or dev
+#Manually triggered from GitHub Actions UI so billable resources only exist while demoing
 on:
-  push:
-    branches: [ main, dev ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+        default: dev
 
 #Stages
 jobs:
@@ -16,16 +24,17 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      #Determines which environment to deploy based on branch
+      #Determines which stack to deploy based on the selected environment.
+      #Deploying the RDS stack also deploys the VPC stack it depends on.
       - name: Set Environment
         id: set-env
         run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
             echo "ENV=prod" >> $GITHUB_OUTPUT
-            echo "STACK_NAME=ProdVpcStack" >> $GITHUB_OUTPUT
+            echo "STACK_NAME=ProdRdsStack" >> $GITHUB_OUTPUT
           else
             echo "ENV=dev" >> $GITHUB_OUTPUT
-            echo "STACK_NAME=DevVpcStack" >> $GITHUB_OUTPUT
+            echo "STACK_NAME=DevRdsStack" >> $GITHUB_OUTPUT
           fi
 
       #Installs NodeJS
