@@ -56,6 +56,16 @@ class RdsStack(cdk.Stack):
             description="PostgreSQL from VPC CIDR",
         )
 
+        #Security group for the ephemeral GitHub Actions runner that runs Liquibase.
+        #Outbound only (GitHub, AWS APIs, image pulls via NAT). It reaches the DB through
+        #the VPC CIDR ingress rule above, so it needs no inbound rules of its own.
+        runner_sg = ec2.SecurityGroup(
+            self, "RunnerSecurityGroup",
+            vpc=vpc,
+            description="Ephemeral GitHub Actions runner (outbound only)",
+            allow_all_outbound=True,
+        )
+
         #RDS PostgreSQL instance with credentials managed by Secrets Manager
         db_instance = rds.DatabaseInstance(
             self, "PostgresInstance",
@@ -68,7 +78,7 @@ class RdsStack(cdk.Stack):
             security_groups=[db_sg],
             allocated_storage=allocated_storage,
             max_allocated_storage=allocated_storage * 2,
-            database_name="appdb",
+            database_name="customers",
             credentials=rds.Credentials.from_generated_secret("postgres"),
             removal_policy=cdk.RemovalPolicy.DESTROY,
             deletion_protection=False,
@@ -84,6 +94,18 @@ class RdsStack(cdk.Stack):
             self, "DbSecretArn",
             value=db_instance.secret.secret_arn,
             description="ARN of the Secrets Manager secret holding DB credentials",
+        )
+        cdk.CfnOutput(
+            self, "RunnerSubnetId",
+            value=vpc.select_subnets(
+                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
+            ).subnet_ids[0],
+            description="Private subnet for the ephemeral Liquibase runner",
+        )
+        cdk.CfnOutput(
+            self, "RunnerSecurityGroupId",
+            value=runner_sg.security_group_id,
+            description="Security group for the ephemeral Liquibase runner",
         )
 
 
